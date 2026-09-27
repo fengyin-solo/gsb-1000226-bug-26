@@ -20,14 +20,25 @@ STATUSES = ["运行", "轻瓦斯", "重瓦斯", "停机"]
 def list_entries(
     keyword: str | None = Query(default=None, description="按箱变编号检索"),
     status: str | None = Query(default=None, description="运行、轻瓦斯、重瓦斯、停机"),
+    model: str | None = Query(default=None, alias="箱变型号", description="按箱变型号检索"),
+    capacity: str | None = Query(default=None, alias="额定容量", description="按额定容量检索"),
     page: int = 1,
     size: int = 20,
 ) -> PageResult[dict]:
-    """按箱变编号与状态过滤箱变管理列表；没有数据时返回空页，不报错。"""
+    """按箱变编号、型号、容量与状态过滤箱变管理列表；没有数据时返回空页，不报错。"""
     if size > 200:
         raise HTTPException(status_code=400, detail="每页最多 200 条，请缩小分页范围")
-    items, total = service.list_entries(keyword=keyword, status=status, page=page, size=size)
+    items, total = service.list_entries(
+        keyword=keyword, status=status, model=model, capacity=capacity, page=page, size=size
+    )
     return PageResult(items=items, total=total, page=page, size=size)
+
+
+@router.get("/export")
+def export_entries() -> dict[str, Any]:
+    """导出箱变管理清单：返回当前过滤条件下的全量数据。"""
+    items, total = service.list_entries(page=1, size=10000)
+    return {"module": "transformer", "total": total, "items": items}
 
 
 @router.get("/{entry_id}", response_model=dict)
@@ -50,16 +61,9 @@ def create_entry(payload: EntryPayload) -> ActionResult:
 
 @router.post("/{entry_id}/actions", response_model=ActionResult)
 def run_action(entry_id: int, payload: EntryPayload) -> ActionResult:
-    """对单条箱式变压器执行停机检修、复归信号、恢复供电；不允许的动作会被拦下并说明原因。"""
+    """对单条箱式变压器执行停机检修、复归信号、恢复供电；不符合当前状态流转的动作会被拦下并说明原因。"""
     action = str(payload.values.get("action") or "").strip()
     entry, message = service.run_action(entry_id, action)
     if entry is None:
         return ActionResult(ok=False, message=message)
     return ActionResult(ok=True, message=message, entry=entry)
-
-
-@router.get("/export")
-def export_entries() -> dict[str, Any]:
-    """导出箱变管理清单：返回当前过滤条件下的全量数据。"""
-    items, total = service.list_entries(page=1, size=10000)
-    return {"module": "transformer", "total": total, "items": items}

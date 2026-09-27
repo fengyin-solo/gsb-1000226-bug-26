@@ -13,13 +13,13 @@ router = APIRouter(prefix="/api/transformer", tags=["箱变管理"])
 service = TransformerService()
 
 LIST_FIELDS = ["箱变编号", "箱变型号", "额定容量", "所属电站", "油温", "绕组温度", "上次检修日", "箱变状态"]
-STATUSES = ["运行", "轻瓦斯", "重瓦斯", "停机"]
+STATUSES = ["运行", "轻瓦斯", "重瓦斯", "停机", "已归档"]
 
 
 @router.get("", response_model=PageResult[dict])
 def list_entries(
     keyword: str | None = Query(default=None, description="按箱变编号检索"),
-    status: str | None = Query(default=None, description="运行、轻瓦斯、重瓦斯、停机"),
+    status: str | None = Query(default=None, description="运行、轻瓦斯、重瓦斯、停机、已归档"),
     page: int = 1,
     size: int = 20,
 ) -> PageResult[dict]:
